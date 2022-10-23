@@ -11,6 +11,7 @@ use socket2::{Domain, Socket, Type};
 pub enum Error {
     IoError(std::io::Error),
     WrongIpVer(String, IpAddr),
+    NoUla(Ipv6Addr),
     NoGua(Ipv6Addr),
 }
 
@@ -25,6 +26,7 @@ impl fmt::Display for Error {
             Self::WrongIpVer(want, got) => {
                 write!(fmt, "wrong ip version: expected {}, got {}", want, got)
             }
+            Self::NoUla(ip) => write!(fmt, "ipv6 address {} is not a ula", ip),
             Self::NoGua(ip) => write!(fmt, "ipv6 address {} is not a gua", ip),
         }
     }
@@ -39,9 +41,9 @@ impl From<std::io::Error> for Error {
 /// An alias for `std::result::Result` that uses `Error` as its error variant.
 pub type Result<T> = std::result::Result<T, Error>;
 
-fn get_ipv6(interface: &str) -> Result<Ipv6Addr> {
+fn get_ipv6(interface: &str, network: &str) -> Result<Ipv6Addr> {
     let socket = Socket::new(Domain::IPV6, Type::DGRAM, None)?;
-    let sock_addr = ("2000::", 0).to_socket_addrs()?.next().unwrap();
+    let sock_addr = (network, 0).to_socket_addrs()?.next().unwrap();
 
     socket.bind_device(Some(interface.as_bytes()))?;
     socket.connect(&sock_addr.into())?;
@@ -55,9 +57,20 @@ fn get_ipv6(interface: &str) -> Result<Ipv6Addr> {
     }
 }
 
+/// Get the preferred outgoing IPv6 ULA of the given interface.
+pub fn get_ipv6_unique_local(interface: &str) -> Result<Ipv6Addr> {
+    let ipv6 = get_ipv6(interface, "fc00::")?;
+
+    if ipv6.is_unique_local() {
+        Ok(ipv6)
+    } else {
+        Err(Error::NoUla(ipv6))
+    }
+}
+
 /// Get the preferred outgoing IPv6 GUA of the given interface.
-pub fn get_ipv6_global(interface: &str) -> Result<Ipv6Addr> {
-    let ipv6 = get_ipv6(interface)?;
+pub fn get_ipv6_unicast_global(interface: &str) -> Result<Ipv6Addr> {
+    let ipv6 = get_ipv6(interface, "2000::")?;
 
     if ipv6.is_unicast_global() {
         Ok(ipv6)
