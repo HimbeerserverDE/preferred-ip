@@ -39,8 +39,7 @@ impl From<std::io::Error> for Error {
 /// An alias for `std::result::Result` that uses `Error` as its error variant.
 pub type Result<T> = std::result::Result<T, Error>;
 
-/// Get the preferred outgoing IPv6 GUA of the given interface.
-pub fn get_ipv6_global(interface: &str) -> Result<Ipv6Addr> {
+fn get_ipv6(interface: &str) -> Result<Ipv6Addr> {
     let socket = Socket::new(Domain::IPV6, Type::DGRAM, None)?;
     let sock_addr = ("2000::", 0).to_socket_addrs()?.next().unwrap();
 
@@ -52,12 +51,17 @@ pub fn get_ipv6_global(interface: &str) -> Result<Ipv6Addr> {
 
     match ip {
         IpAddr::V4(_) => Err(Error::WrongIpVer("IPv6".into(), ip)),
-        IpAddr::V6(ipv6) => {
-            if ipv6.is_unicast_global() {
-                Ok(ipv6)
-            } else {
-                Err(Error::NoGua(ipv6))
-            }
-        }
+        IpAddr::V6(ipv6) => Ok(ipv6),
+    }
+}
+
+/// Get the preferred outgoing IPv6 GUA of the given interface.
+pub fn get_ipv6_global(interface: &str) -> Result<Ipv6Addr> {
+    let ipv6 = get_ipv6(interface)?;
+
+    if ipv6.is_unicast_global() {
+        Ok(ipv6)
+    } else {
+        Err(Error::NoGua(ipv6))
     }
 }
