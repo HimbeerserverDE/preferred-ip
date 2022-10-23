@@ -1,7 +1,7 @@
 #![feature(ip)]
 
 use std::fmt;
-use std::net::{IpAddr, Ipv6Addr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::net::{ToSocketAddrs, UdpSocket};
 
 use socket2::{Domain, Socket, Type};
@@ -14,6 +14,9 @@ pub enum Error {
     NoLinkLocal(Ipv6Addr),
     NoUla(Ipv6Addr),
     NoGua(Ipv6Addr),
+    NoV4LL(Ipv4Addr),
+    NoPrivate(Ipv4Addr, Ipv4Addr, Ipv4Addr),
+    NoGlobal(Ipv4Addr),
 }
 
 impl std::error::Error for Error {}
@@ -32,6 +35,15 @@ impl fmt::Display for Error {
             }
             Self::NoUla(ip) => write!(fmt, "ipv6 address {} is not a ula", ip),
             Self::NoGua(ip) => write!(fmt, "ipv6 address {} is not a gua", ip),
+            Self::NoV4LL(ip) => {
+                write!(fmt, "ipv4 address {} is not a link-local address", ip)
+            }
+            Self::NoPrivate(a, b, c) => {
+                write!(fmt, "none of {}, {} and {} are private ipv4", a, b, c)
+            }
+            Self::NoGlobal(ip) => {
+                write!(fmt, "ipv4 address {} is not a global address", ip)
+            }
         }
     }
 }
@@ -92,5 +104,63 @@ pub fn get_ipv6_unicast_global(interface: &str) -> Result<Ipv6Addr> {
         Ok(ipv6)
     } else {
         Err(Error::NoGua(ipv6))
+    }
+}
+
+fn get_ipv4(interface: &str, network: &str) -> Result<Ipv4Addr> {
+    let socket = Socket::new(Domain::IPV4, Type::DGRAM, None)?;
+    let sock_addr = (network, 0).to_socket_addrs()?.next().unwrap();
+
+    socket.bind_device(Some(interface.as_bytes()))?;
+    socket.connect(&sock_addr.into())?;
+
+    let udp: UdpSocket = socket.into();
+    let ip = udp.local_addr()?.ip();
+
+    match ip {
+        IpAddr::V4(ipv4) => Ok(ipv4),
+        IpAddr::V6(_) => Err(Error::WrongIpVer("IPv4".into(), ip)),
+    }
+}
+
+/// Get the (preferred outgoing) IPv4 link-local address
+/// of the given interface.
+pub fn get_ipv4_link_local(interface: &str) -> Result<Ipv4Addr> {
+    let ipv4 = get_ipv4(interface, "169.254.0.0")?;
+
+    if ipv4.is_link_local() {
+        Ok(ipv4)
+    } else {
+        Err(Error::NoV4LL(ipv4))
+    }
+}
+
+/// Get the preferred outgoing IPv4 private address
+/// of the given interface.
+pub fn get_ipv4_private(interface: &str) -> Result<Ipv4Addr> {
+    let a = get_ipv4(interface, "10.0.0.0")?;
+    let b = get_ipv4(interface, "172.16.0.0")?;
+    let c = get_ipv4(interface, "192.168.0.0")?;
+
+    if c.is_private() {
+        Ok(c)
+    } else if b.is_private() {
+        Ok(b)
+    } else if a.is_private() {
+        Ok(a)
+    } else {
+        Err(Error::NoPrivate(a, b, c))
+    }
+}
+
+/// Get the preferred outgoing IPv4 global address
+/// of the given interface.
+pub fn get_ipv4_global(interface: &str) -> Result<Ipv4Addr> {
+    let ipv4 = get_ipv4(interface, "0.0.0.0")?;
+
+    if ipv4.is_global() {
+        Ok(ipv4)
+    } else {
+        Err(Error::NoGlobal(ipv4))
     }
 }
