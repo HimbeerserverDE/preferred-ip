@@ -11,6 +11,7 @@ use socket2::{Domain, Socket, Type};
 pub enum Error {
     IoError(std::io::Error),
     WrongIpVer(String, IpAddr),
+    NoLinkLocal(Ipv6Addr),
     NoUla(Ipv6Addr),
     NoGua(Ipv6Addr),
 }
@@ -25,6 +26,9 @@ impl fmt::Display for Error {
             }
             Self::WrongIpVer(want, got) => {
                 write!(fmt, "wrong ip version: expected {}, got {}", want, got)
+            }
+            Self::NoLinkLocal(ip) => {
+                write!(fmt, "ipv6 address {} is not a link-local address", ip)
             }
             Self::NoUla(ip) => write!(fmt, "ipv6 address {} is not a ula", ip),
             Self::NoGua(ip) => write!(fmt, "ipv6 address {} is not a gua", ip),
@@ -54,6 +58,18 @@ fn get_ipv6(interface: &str, network: &str) -> Result<Ipv6Addr> {
     match ip {
         IpAddr::V4(_) => Err(Error::WrongIpVer("IPv6".into(), ip)),
         IpAddr::V6(ipv6) => Ok(ipv6),
+    }
+}
+
+/// Get the (preferred outgoing) IPv6 link-local address
+/// of the given interface.
+pub fn get_ipv6_unicast_link_local(interface: &str) -> Result<Ipv6Addr> {
+    let ipv6 = get_ipv6(interface, "fe80::")?;
+
+    if ipv6.is_unicast_link_local() {
+        Ok(ipv6)
+    } else {
+        Err(Error::NoLinkLocal(ipv6))
     }
 }
 
