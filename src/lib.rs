@@ -57,7 +57,7 @@ impl From<std::io::Error> for Error {
 /// An alias for `std::result::Result` that uses `Error` as its error variant.
 pub type Result<T> = std::result::Result<T, Error>;
 
-fn get_ipv6(interface: &str, network: &str) -> Result<Ipv6Addr> {
+fn ipv6(interface: &str, network: &str) -> Result<Ipv6Addr> {
     let socket = Socket::new(Domain::IPV6, Type::DGRAM, None)?;
     let sock_addr = (network, 0).to_socket_addrs()?.next().unwrap();
 
@@ -75,8 +75,8 @@ fn get_ipv6(interface: &str, network: &str) -> Result<Ipv6Addr> {
 
 /// Get the (preferred outgoing) IPv6 link-local address
 /// of the given interface.
-pub fn get_ipv6_unicast_link_local(interface: &str) -> Result<Ipv6Addr> {
-    let ipv6 = get_ipv6(interface, "fe80::")?;
+pub fn ipv6_unicast_link_local(interface: &str) -> Result<Ipv6Addr> {
+    let ipv6 = ipv6(interface, "fe80::")?;
 
     if ipv6.is_unicast_link_local() {
         Ok(ipv6)
@@ -86,8 +86,8 @@ pub fn get_ipv6_unicast_link_local(interface: &str) -> Result<Ipv6Addr> {
 }
 
 /// Get the preferred outgoing IPv6 ULA of the given interface.
-pub fn get_ipv6_unique_local(interface: &str) -> Result<Ipv6Addr> {
-    let ipv6 = get_ipv6(interface, "fc00::")?;
+pub fn ipv6_unique_local(interface: &str) -> Result<Ipv6Addr> {
+    let ipv6 = ipv6(interface, "fc00::")?;
 
     if ipv6.is_unique_local() {
         Ok(ipv6)
@@ -97,8 +97,8 @@ pub fn get_ipv6_unique_local(interface: &str) -> Result<Ipv6Addr> {
 }
 
 /// Get the preferred outgoing IPv6 GUA of the given interface.
-pub fn get_ipv6_unicast_global(interface: &str) -> Result<Ipv6Addr> {
-    let ipv6 = get_ipv6(interface, "2000::")?;
+pub fn ipv6_unicast_global(interface: &str) -> Result<Ipv6Addr> {
+    let ipv6 = ipv6(interface, "2000::")?;
 
     if ipv6.is_unicast_global() {
         Ok(ipv6)
@@ -107,7 +107,7 @@ pub fn get_ipv6_unicast_global(interface: &str) -> Result<Ipv6Addr> {
     }
 }
 
-fn get_ipv4(interface: &str, network: &str) -> Result<Ipv4Addr> {
+fn ipv4(interface: &str, network: &str) -> Result<Ipv4Addr> {
     let socket = Socket::new(Domain::IPV4, Type::DGRAM, None)?;
     let sock_addr = (network, 0).to_socket_addrs()?.next().unwrap();
 
@@ -125,8 +125,8 @@ fn get_ipv4(interface: &str, network: &str) -> Result<Ipv4Addr> {
 
 /// Get the (preferred outgoing) IPv4 link-local address
 /// of the given interface.
-pub fn get_ipv4_link_local(interface: &str) -> Result<Ipv4Addr> {
-    let ipv4 = get_ipv4(interface, "169.254.0.0")?;
+pub fn ipv4_link_local(interface: &str) -> Result<Ipv4Addr> {
+    let ipv4 = ipv4(interface, "169.254.0.0")?;
 
     if ipv4.is_link_local() {
         Ok(ipv4)
@@ -137,10 +137,10 @@ pub fn get_ipv4_link_local(interface: &str) -> Result<Ipv4Addr> {
 
 /// Get the preferred outgoing IPv4 private address
 /// of the given interface.
-pub fn get_ipv4_private(interface: &str) -> Result<Ipv4Addr> {
-    let a = get_ipv4(interface, "10.0.0.0")?;
-    let b = get_ipv4(interface, "172.16.0.0")?;
-    let c = get_ipv4(interface, "192.168.0.0")?;
+pub fn ipv4_private(interface: &str) -> Result<Ipv4Addr> {
+    let a = ipv4(interface, "10.0.0.0")?;
+    let b = ipv4(interface, "172.16.0.0")?;
+    let c = ipv4(interface, "192.168.0.0")?;
 
     if c.is_private() {
         Ok(c)
@@ -155,8 +155,8 @@ pub fn get_ipv4_private(interface: &str) -> Result<Ipv4Addr> {
 
 /// Get the preferred outgoing IPv4 global address
 /// of the given interface.
-pub fn get_ipv4_global(interface: &str) -> Result<Ipv4Addr> {
-    let ipv4 = get_ipv4(interface, "0.0.0.0")?;
+pub fn ipv4_global(interface: &str) -> Result<Ipv4Addr> {
+    let ipv4 = ipv4(interface, "0.0.0.0")?;
 
     if ipv4.is_global() {
         Ok(ipv4)
